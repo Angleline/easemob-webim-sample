@@ -1,0 +1,197 @@
+<html ng-app="chatApp">
+
+<head>
+    <meta charset="utf-8">
+    <title>test</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+    <meta name="description" content=""/>
+    <meta name="author" content=""/>
+    <!--[if IE]>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <![endif]-->
+    <script src="//cdn.bootcss.com/URI.js/1.18.1/URI.min.js"></script>
+    <script src="js/webim.config.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/strophe-1.2.8.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/websdk-1.4.0.js" type="text/javascript" charset="utf-8"></script>
+    <script src="//cdn.bootcss.com/jquery/3.1.1/jquery.min.js"></script>
+    <script src="//cdn.bootcss.com/angular.js/1.5.8/angular.min.js"></script>
+    <script src="//cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <link href="//cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <link href="//cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" rel="stylesheet">
+</head>
+
+<body style="font-family:Verdana,serif">
+<div class="container clear-top" ng-controller="chatCtrl">
+    <div class="row" style="padding-top: 20px;padding-bottom: 20px">
+        <div class="col-md-12">
+            <ul class="media-list" style="flex-wrap: wrap-reverse">
+                <li class="media" ng-repeat="chat in chatlist">
+                    <div class="media-body" >
+                        <div class="media">
+                            <div ng-if="!chat.self" class="text-left">
+                            <a class="pull-left" href="#">
+                                <img class="media-object img-circle" ng-src="{{img}}" alt="{{placeholder}}"/>
+                            </a>
+                            <div class="media-body">
+                                {{chat.data}}
+                                <br/>
+                                <hr/>
+                            </div>
+                            </div>
+
+                            <div ng-if="chat.self" class="text-right">
+                                <div class="media-body">
+                                    {{chat.data}}
+                                    <br/>
+                                    <hr/>
+                                </div>
+                                <a class="pull-left" href="#">
+                                    <img class="media-object img-circle" ng-src="{{img}}" alt="{{placeholder}}"/>
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+
+    </div>
+    <div class="navbar navbar-default navbar-fixed-bottom" style="padding: 5px">
+
+        <form class="input-group" ng-submit="sendmsg()">
+            <input type="text" class="form-control" ng-model="msg"/>
+            <span class="input-group-btn">
+                                        <button class="btn btn-success" type="submit">发送</button>
+                                    </span>
+        </form>
+    </div>
+</div>
+
+<script type="text/javascript" charset="utf-8">
+    var query = new URI(window.location).search(true);
+    var username = query.username;
+    var password = query.password;
+    var touser = query.touser;
+    var conn = new WebIM.connection({
+        https: WebIM.config.https,
+        url: WebIM.config.xmppURL,
+        isAutoLogin: WebIM.config.isAutoLogin,
+        isMultiLoginSessions: WebIM.config.isMultiLoginSessions
+    });
+
+
+    function registerUser(username, password) {
+        var options = {
+            username: username,
+            password: password,
+            nickname: username,
+            appKey: WebIM.config.appkey,
+            success: function (message) {
+                login(username, password);
+            },
+            error: function (message) {
+                switch (message.type) {
+                    case 17:
+                        login(username, password);
+                        break;
+                    default:
+                        break;
+                }
+            },
+            apiUrl: WebIM.config.apiURL
+        };
+
+        WebIM.utils.registerUser(options);
+    }
+
+    function login(username, password) {
+        var options = {
+            apiUrl: WebIM.config.apiURL,
+            user: username,
+            pwd: password,
+            appKey: WebIM.config.appkey
+        };
+
+        conn.open(options);
+    }
+
+    if (username && password) {
+        registerUser(username, password);
+    }
+
+    var chatApp = angular.module('chatApp', []);
+    chatApp.controller('chatCtrl', function ($scope) {
+        conn.listen({
+            onOpened: function (message) { //连接成功回调
+                //如果isAutoLogin设置为false，那么必须手动设置上线，否则无法收消息
+                conn.setPresence();
+            },
+            onClosed: function (message) {
+            }, //连接关闭回调
+            onTextMessage: function (message) {
+                if (!message.error) {
+                    message.self=false;
+                    $scope.chatlist.push(message);
+                    $scope.$apply();
+                }
+            }, //收到文本消息
+            onEmojiMessage: function (message) {
+            }, //收到表情消息
+            onPictureMessage: function (message) {
+            }, //收到图片消息
+            onCmdMessage: function (message) {
+            }, //收到命令消息
+            onAudioMessage: function (message) {
+            }, //收到音频消息
+            onLocationMessage: function (message) {
+            }, //收到位置消息
+            onFileMessage: function (message) {
+            }, //收到文件消息
+            onVideoMessage: function (message) {
+            }, //收到视频消息
+            onPresence: function (message) {
+            }, //收到联系人订阅请求、处理群组、聊天室被踢解散等消息
+            onRoster: function (message) {
+            }, //处理好友申请
+            onInviteMessage: function (message) {
+            }, //处理群组邀请
+            onOnline: function () {
+
+            }, //本机网络连接成功
+            onOffline: function () {
+            }, //本机网络掉线
+            onError: function (message) {
+            } //失败回调
+        });
+
+        $scope.chatlist = [];
+        $scope.msg = null;
+        $scope.sendmsg = function () {
+            if ($scope.msg) {
+                var id = conn.getUniqueId();
+                var msg = new WebIM.message('txt', id);
+                msg.set({
+                    msg: $scope.msg,
+                    to: touser,
+                    success: function (id, serverMsgId) {
+                        $scope.chatlist.push({
+                            data: $scope.msg,
+                            from: username,
+                            to: touser,
+                            self:true
+                        });
+                        $scope.msg = null;
+                        $scope.$apply();
+                    }
+                });
+                conn.send(msg.body);
+            }
+        }
+    });
+</script>
+</body>
+
+</html>
